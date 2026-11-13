@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="no" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>SerieTracker – Oversikt over strømmeserier</title>
+    
+    <!-- Laster Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Laster Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Laster FontAwesome for ikoner -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Konfigurerer Tailwind for mørkt tema og Inter-font -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#162032',
+                            950: '#090d16',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Egendefinerte stiler for jevn rulling og trykkvennlighet på mobil */
+        body {
+            background-color: #090d16;
+            color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Skjuler rullefelt på horisontale filterlister men beholder rullefunksjon */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Animasjon for kort og meldinger */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white pb-24 md:pb-12">
+
+    <!-- Topp-navigasjon / Header -->
+    <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 shadow-lg">
+        <div class="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/20">
+                    <i class="fa-solid fa-tv text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white leading-tight">SerieTracker</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Full kontroll på alle strømmetjenester</p>
+                </div>
+            </div>
+
+            <!-- Handlingsknapper i toppmeny -->
+            <div class="flex items-center gap-2">
+                <button onclick="openBackupModal()" class="p-2.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-2 text-sm font-medium" title="Backup, deling og innstillinger">
+                    <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
+                    <span class="hidden sm:inline">Backup / Del</span>
+                </button>
+                
+                <button onclick="openSeriesModal()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold shadow-lg shadow-indigo-600/25 transition flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Ny serie</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hovedinnhold -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 pt-5 space-y-6">
+
+        <!-- Statistikk-linje -->
+        <section aria-label="Statistikk" class="grid grid-cols-3 gap-2.5 sm:gap-4">
+            <button onclick="setQuickStatusFilter('Ser nå')" class="text-left bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-2xl p-3.5 sm:p-4 transition group focus:outline-none focus:ring-2 focus:ring-emerald-500/50">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs sm:text-sm font-medium text-slate-400 group-hover:text-slate-300">Ser nå</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+                </div>
+                <p id="stat-watching" class="text-2xl sm:text-3xl font-extrabold text-white">0</p>
+            </button>
+
+            <button onclick="setQuickStatusFilter('Venter på ny sesong')" class="text-left bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-2xl p-3.5 sm:p-4 transition group focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs sm:text-sm font-medium text-slate-400 group-hover:text-slate-300">Venter</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span>
+                </div>
+                <p id="stat-waiting" class="text-2xl sm:text-3xl font-extrabold text-white">0</p>
+            </button>
+
+            <button onclick="setQuickStatusFilter('Ferdig')" class="text-left bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-2xl p-3.5 sm:p-4 transition group focus:outline-none focus:ring-2 focus:ring-sky-500/50">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs sm:text-sm font-medium text-slate-400 group-hover:text-slate-300">Ferdig</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-sm shadow-sky-500/50"></span>
+                </div>
+                <p id="stat-finished" class="text-2xl sm:text-3xl font-extrabold text-white">0</p>
+            </button>
+        </section>
+
+        <!-- Søk og Filtrering -->
+        <section aria-label="Søk og filtrering" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4 shadow-md">
+            <!-- Søkefelt og Sortering -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        placeholder="Søk etter serietittel eller notat..." 
+                        class="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                    >
+                    <button id="clear-search-btn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Sortering -->
+                <div class="flex items-center gap-2">
+                    <label for="sort-select" class="text-xs text-slate-400 whitespace-nowrap hidden md:inline">Sorter etter:</label>
+                    <select id="sort-select" class="w-full sm:w-auto px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+                        <option value="updated">Sist oppdatert</option>
+                        <option value="title">Alfabetisk (A–Å)</option>
+                        <option value="service">Strømmetjeneste</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Hurtig-pills for Status -->
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1" id="status-pills">
+                <button data-status="Alle" class="status-pill px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition bg-indigo-600 text-white">Alle</button>
+                <button data-status="Ser nå" class="status-pill px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700">Ser nå</button>
+                <button data-status="Venter på ny sesong" class="status-pill px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700">Venter på ny sesong</button>
+                <button data-status="Planlagt" class="status-pill px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700">Planlagt</button>
+                <button data-status="Ferdig" class="status-pill px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700">Ferdig</button>
+            </div>
+
+            <!-- Nedtrekksmenyer for Tjeneste og Hvem som ser -->
+            <div class="grid grid-cols-2 sm:flex sm:items-center gap-3 pt-1 border-t border-slate-800/80">
+                <div class="flex-1 sm:max-w-xs">
+                    <label for="filter-service" class="block text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">Strømmetjeneste</label>
+                    <select id="filter-service" class="w-full px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+                        <option value="Alle">Alle tjenester</option>
+                        <option value="Netflix">Netflix</option>
+                        <option value="Max">Max</option>
+                        <option value="Disney+">Disney+</option>
+                        <option value="Viaplay">Viaplay</option>
+                        <option value="NRK TV">NRK TV</option>
+                        <option value="TV 2 Play">TV 2 Play</option>
+                        <option value="Prime Video">Prime Video</option>
+                        <option value="SkyShowtime">SkyShowtime</option>
+                        <option value="Apple TV+">Apple TV+</option>
+                        <option value="Annet">Annet</option>
+                    </select>
+                </div>
+
+                <div class="flex-1 sm:max-w-xs">
+                    <label for="filter-viewer" class="block text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1">Hvem ser</label>
+                    <select id="filter-viewer" class="w-full px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+                        <option value="Alle">Alle</option>
+                        <option value="Begge">Begge</option>
+                        <option value="Gøran">Gøran</option>
+                        <option value="Dina">Dina</option>
+                    </select>
+                </div>
+
+                <div class="col-span-2 sm:ml-auto flex items-end justify-between sm:justify-end gap-2">
+                    <span id="result-count" class="text-xs text-slate-400 py-2">Viser 0 serier</span>
+                    <button id="reset-filters-btn" onclick="resetFilters()" class="hidden px-3 py-2 rounded-xl text-xs font-medium text-indigo-400 hover:bg-indigo-500/10 transition">
+                        Nullstill filter
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Varselbanner dersom eksempeldata vises -->
+        <div id="demo-banner" class="hidden bg-indigo-950/60 border border-indigo-500/30 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-sparkles text-indigo-400 text-lg"></i>
+                <p class="text-xs sm:text-sm text-indigo-200">
+                    Viser forhåndsutfylte eksempelserier slik at du kan teste funksjonene.
+                </p>
+            </div>
+            <button onclick="clearDemoData()" class="px-3.5 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-semibold text-white whitespace-nowrap transition">
+                Tøm eksempeldata
+            </button>
+        </div>
+
+        <!-- Serie-oversikt (Grid med kort) -->
+        <section aria-label="Serieliste">
+            <div id="series-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Kort rendres dynamisk via JavaScript -->
+            </div>
+
+            <!-- Tom tilstand når ingen serier matcher -->
+            <div id="empty-state" class="hidden text-center py-16 px-4 bg-slate-900/50 border border-slate-800/80 border-dashed rounded-3xl">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 text-2xl">
+                    <i class="fa-solid fa-film"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white mb-1">Ingen serier funnet</h3>
+                <p id="empty-state-text" class="text-sm text-slate-400 max-w-md mx-auto mb-5">
+                    Du har ingen serier som matcher valgt filter, eller listen er tom.
+                </p>
+                <div class="flex flex-wrap justify-center gap-3">
+                    <button onclick="resetFilters()" id="empty-reset-btn" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-medium text-white transition">
+                        Nullstill filter
+                    </button>
+                    <button onclick="openSeriesModal()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold text-white transition">
+                        <i class="fa-solid fa-plus mr-1.5"></i>Legg til serie
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Flytende "Ny serie"-knapp nederst på mobil for ekstra god enhåndsbetjening -->
+    <div class="fixed bottom-5 right-5 z-20 sm:hidden">
+        <button onclick="openSeriesModal()" aria-label="Legg til ny serie" class="w-14 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-xl shadow-indigo-600/40 flex items-center justify-center text-xl transition">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- MODAL: Legg til / Rediger Serie -->
+    <div id="series-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-fade-in">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <h2 id="modal-title" class="text-lg font-bold text-white">Legg til ny serie</h2>
+                <button onclick="closeSeriesModal()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="series-form" class="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+                <input type="hidden" id="form-id">
+
+                <!-- Tittel -->
+                <div>
+                    <label for="form-title" class="block text-sm font-medium text-slate-300 mb-1.5">Tittel på serie *</label>
+                    <input type="text" id="form-title" required placeholder="F.eks. Severance, Exit, The Last of Us..." class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                </div>
+
+                <!-- Strømmetjeneste og Status -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="form-service" class="block text-sm font-medium text-slate-300 mb-1.5">Strømmetjeneste</label>
+                        <select id="form-service" class="w-full px-3.5 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-indigo-500">
+                            <option value="Netflix">Netflix</option>
+                            <option value="Max">Max</option>
+                            <option value="Disney+">Disney+</option>
+                            <option value="Viaplay">Viaplay</option>
+                            <option value="NRK TV">NRK TV</option>
+                            <option value="TV 2 Play">TV 2 Play</option>
+                            <option value="Prime Video">Prime Video</option>
+                            <option value="SkyShowtime">SkyShowtime</option>
+                            <option value="Apple TV+">Apple TV+</option>
+                            <option value="Annet">Annet</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="form-status" class="block text-sm font-medium text-slate-300 mb-1.5">Status</label>
+                        <select id="form-status" class="w-full px-3.5 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-indigo-500">
+                            <option value="Ser nå">Ser nå</option>
+                            <option value="Venter på ny sesong">Venter på ny sesong</option>
+                            <option value="Planlagt">Planlagt</option>
+                            <option value="Ferdig">Ferdig</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sesong og Episode -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="form-season" class="block text-sm font-medium text-slate-300 mb-1.5">Sesong</label>
+                        <input type="number" id="form-season" min="1" max="99" value="1" required class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label for="form-episode" class="block text-sm font-medium text-slate-300 mb-1.5">Episode</label>
+                        <input type="number" id="form-episode" min="1" max="999" value="1" required class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Hvem ser -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1.5">Hvem ser på denne?</label>
+                    <div class="grid grid-cols-4 gap-2" id="viewer-selector">
+                        <button type="button" data-viewer="Begge" class="viewer-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-medium transition bg-indigo-600 border-indigo-500 text-white">Begge</button>
+                        <button type="button" data-viewer="Gøran" class="viewer-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-medium transition bg-slate-950 border-slate-700 text-slate-300 hover:bg-slate-800">Gøran</button>
+                        <button type="button" data-viewer="Dina" class="viewer-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-medium transition bg-slate-950 border-slate-700 text-slate-300 hover:bg-slate-800">Dina</button>
+                        <button type="button" data-viewer="" class="viewer-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-medium transition bg-slate-950 border-slate-700 text-slate-400 hover:bg-slate-800">Ingen</button>
+                    </div>
+                    <input type="hidden" id="form-viewer" value="Begge">
+                </div>
+
+                <!-- Notat / Kommentar -->
+                <div>
+                    <label for="form-note" class="block text-sm font-medium text-slate-300 mb-1.5">Notat (valgfritt)</label>
+                    <input type="text" id="form-note" placeholder="F.eks. Ny sesong kommer til høsten, anbefalt av..." class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <!-- Lagre / Avbryt -->
+                <div class="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
+                    <button type="button" onclick="closeSeriesModal()" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm transition">
+                        Avbryt
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition">
+                        Lagre serie
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Slett-bekreftelse (erstatter confirm()) -->
+    <div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-fade-in text-center">
+            <div class="w-12 h-12 mx-auto mb-4 rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center text-xl">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">Slette serie?</h3>
+            <p class="text-sm text-slate-400 mb-6">
+                Er du sikker på at du vil slette <span id="delete-series-name" class="font-semibold text-white"></span>? Dette kan ikke angres.
+            </p>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm transition">
+                    Avbryt
+                </button>
+                <button id="confirm-delete-btn" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm transition">
+                    Ja, slett
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Backup, Eksport & Import -->
+    <div id="backup-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-white">Backup & Deling</h2>
+                <button onclick="closeBackupModal()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5">
+                <p class="text-sm text-slate-400 leading-relaxed">
+                    Alle seriene dine lagres automatisk lokalt i nettleseren. Bruk eksport og import for å ta sikkerhetskopi eller overføre hele listen mellom to telefoner eller PC.
+                </p>
+
+                <!-- Eksporter JSON -->
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
+                            <i class="fa-solid fa-file-export"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Eksporter serieliste</h3>
+                            <p class="text-xs text-slate-400">Last ned som JSON-fil eller kopier tekst</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="exportJSON()" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-download"></i> Last ned fil
+                        </button>
+                        <button onclick="copyJSONToClipboard()" class="py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-medium transition flex items-center justify-center gap-2" title="Kopier data til utklippstavle">
+                            <i class="fa-regular fa-copy"></i> Kopier
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Importer JSON -->
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center">
+                            <i class="fa-solid fa-file-import"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-white">Importer serieliste</h3>
+                            <p class="text-xs text-slate-400">Last inn en tidligere eksportert JSON-fil</p>
+                        </div>
+                    </div>
+                    <label class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-upload"></i> Velg JSON-fil fra enhet
+                        <input type="file" id="import-file-input" accept=".json,application/json" class="hidden" onchange="importJSON(event)">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast / Meldingssystem nederst på skjermen -->
+    <div id="toast-container" class="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-sm px-4"></div>
+
+    <script>
+        /**
+         * SerieTracker - Komplett JavaScript-logikk
+         * Håndterer lagring i localStorage, filtrering, telling av sesong/episode og JSON-eksport/import.
+         */
+
+        const STORAGE_KEY = 'serietracker_data_v1';
+        const DEMO_FLAG_KEY = 'serietracker_is_demo_v1';
+
+        // Fargekoder for strømmetjenester
+        const SERVICE_STYLES = {
+            'Netflix': { bg: 'bg-red-600/20', text: 'text-red-400', border: 'border-red-500/30', dot: 'bg-red-500' },
+            'Max': { bg: 'bg-blue-600/20', text: 'text-blue-400', border: 'border-blue-500/30', dot: 'bg-blue-500' },
+            'Disney+': { bg: 'bg-cyan-600/20', text: 'text-cyan-300', border: 'border-cyan-500/30', dot: 'bg-cyan-400' },
+            'Viaplay': { bg: 'bg-pink-600/20', text: 'text-pink-400', border: 'border-pink-500/30', dot: 'bg-pink-500' },
+            'NRK TV': { bg: 'bg-sky-600/20', text: 'text-sky-300', border: 'border-sky-500/30', dot: 'bg-sky-400' },
+            'TV 2 Play': { bg: 'bg-purple-600/20', text: 'text-purple-300', border: 'border-purple-500/30', dot: 'bg-purple-400' },
+            'Prime Video': { bg: 'bg-teal-600/20', text: 'text-teal-300', border: 'border-teal-500/30', dot: 'bg-teal-400' },
+            'SkyShowtime': { bg: 'bg-indigo-600/20', text: 'text-indigo-300', border: 'border-indigo-500/30', dot: 'bg-indigo-400' },
+            'Apple TV+': { bg: 'bg-zinc-600/30', text: 'text-zinc-200', border: 'border-zinc-500/40', dot: 'bg-zinc-300' },
+            'Annet': { bg: 'bg-slate-700/40', text: 'text-slate-300', border: 'border-slate-600/40', dot: 'bg-slate-400' }
+        };
+
+        // Fargekoder for status
+        const STATUS_STYLES = {
+            'Ser nå': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+            'Venter på ny sesong': 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+            'Planlagt': 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+            'Ferdig': 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+        };
+
+        // Realistiske eksempelserier ved første gangs åpning
+        const DEFAULT_SERIES = [
+            {
+                id: 'demo-1',
+                title: 'Severance',
+                service: 'Apple TV+',
+                status: 'Ser nå',
+                season: 2,
+                episode: 4,
+                viewer: 'Begge',
+                note: 'Veldig spennende! Se neste på fredag.',
+                updatedAt: Date.now() - 1000 * 60 * 30
+            },
+            {
+                id: 'demo-2',
+                title: 'The Last of Us',
+                service: 'Max',
+                status: 'Venter på ny sesong',
+                season: 2,
+                episode: 1,
+                viewer: 'Begge',
+                note: 'Ferdig med sesong 1.',
+                updatedAt: Date.now() - 1000 * 60 * 60 * 5
+            },
+            {
+                id: 'demo-3',
+                title: 'Exit',
+                service: 'NRK TV',
+                status: 'Ferdig',
+                season: 3,
+                episode: 8,
+                viewer: 'Begge',
+                note: 'Alle tre sesonger sett.',
+                updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 2
+            },
+            {
+                id: 'demo-4',
+                title: 'The Bear',
+                service: 'Disney+',
+                status: 'Ser nå',
+                season: 3,
+                episode: 2,
+                viewer: 'Gøran',
+                note: 'Korte episoder, perfekt til kveldsmat.',
+                updatedAt: Date.now() - 1000 * 60 * 60 * 12
+            },
+            {
+                id: 'demo-5',
+                title: 'Bridgerton',
+                service: 'Netflix',
+                status: 'Planlagt',
+                season: 1,
+                episode: 1,
+                viewer: 'Dina',
+                note: 'Tipset av venninne.',
+                updatedAt: Date.now() - 1000 * 60 * 60 * 48
+            }
+        ];
+
+        // Applikasjonstilstand
+        let seriesList = [];
+        let filters = {
+            search: '',
+            status: 'Alle',
+            service: 'Alle',
+            viewer: 'Alle',
+            sort: 'updated'
+        };
+        let seriesToDeleteId = null;
+
+        /**
+         * Initialiserer applikasjonen når siden lastes
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            setupEventListeners();
+            renderAll();
+        });
+
+        /**
+         * Laster data fra localStorage eller oppretter eksempeldata første gang
+         */
+        function loadData() {
+            try {
+                const rawData = localStorage.getItem(STORAGE_KEY);
+                if (rawData) {
+                    seriesList = JSON.parse(rawData);
+                } else {
+                    // Første gangs besøk: legg inn eksempelserier
+                    seriesList = [...DEFAULT_SERIES];
+                    localStorage.setItem(DEMO_FLAG_KEY, 'true');
+                    saveData(false);
+                }
+            } catch (error) {
+                console.error('Feil ved lasting av data:', error);
+                seriesList = [];
+            }
+        }
+
+        /**
+         * Lagrer data til localStorage og oppdaterer visningen
+         */
+        function saveData(shouldRender = true) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(seriesList));
+                if (shouldRender) {
+                    renderAll();
+                }
+            } catch (error) {
+                showToast('Kunne ikke lagre endringer i nettleseren.', 'error');
+            }
+        }
+
+        /**
+         * Tømmer forhåndsutfylte eksempelserier
+         */
+        function clearDemoData() {
+            seriesList = seriesList.filter(s => !String(s.id).startsWith('demo-'));
+            localStorage.removeItem(DEMO_FLAG_KEY);
+            saveData();
+            showToast('Eksempelserier er fjernet!');
+        }
+
+        /**
+         * Setter opp alle hendelseslyttere for søk, filter og skjema
+         */
+        function setupEventListeners() {
+            // Søkefelt
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', (e) => {
+                filters.search = e.target.value.trim().toLowerCase();
+                document.getElementById('clear-search-btn').classList.toggle('hidden', !filters.search);
+                renderSeriesGrid();
+            });
+
+            // Sortering
+            document.getElementById('sort-select').addEventListener('change', (e) => {
+                filters.sort = e.target.value;
+                renderSeriesGrid();
+            });
+
+            // Status hurtigknapper (pills)
+            document.querySelectorAll('.status-pill').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filters.status = btn.dataset.status;
+                    updateStatusPillsUI();
+                    renderSeriesGrid();
+                });
+            });
+
+            // Strømmetjeneste filter
+            document.getElementById('filter-service').addEventListener('change', (e) => {
+                filters.service = e.target.value;
+                renderSeriesGrid();
+            });
+
+            // Hvem ser filter
+            document.getElementById('filter-viewer').addEventListener('change', (e) => {
+                filters.viewer = e.target.value;
+                renderSeriesGrid();
+            });
+
+            // Hvem ser velger i modal-skjema
+            document.querySelectorAll('.viewer-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    selectViewerInForm(btn.dataset.viewer);
+                });
+            });
+
+            // Skjemainnsending (Ny / Rediger serie)
+            document.getElementById('series-form').addEventListener('submit', handleFormSubmit);
+
+            // Slett-bekreftelse
+            document.getElementById('confirm-delete-btn').addEventListener('click', executeDelete);
+
+            // Lukk modaler ved klikk på bakgrunn eller Escape-tast
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeSeriesModal();
+                    closeDeleteModal();
+                    closeBackupModal();
+                }
+            });
+        }
+
+        /**
+         * Oppdaterer både statistikk, demobanner og seriekort
+         */
+        function renderAll() {
+            updateStats();
+            updateDemoBanner();
+            updateStatusPillsUI();
+            renderSeriesGrid();
+        }
+
+        /**
+         * Oppdaterer tallene i statistikk-linjen øverst
+         */
+        function updateStats() {
+            const watching = seriesList.filter(s => s.status === 'Ser nå').length;
+            const waiting = seriesList.filter(s => s.status === 'Venter på ny sesong').length;
+            const finished = seriesList.filter(s => s.status === 'Ferdig').length;
+
+            document.getElementById('stat-watching').textContent = watching;
+            document.getElementById('stat-waiting').textContent = waiting;
+            document.getElementById('stat-finished').textContent = finished;
+        }
+
+        /**
+         * Viser eller skjuler banneret for eksempeldata
+         */
+        function updateDemoBanner() {
+            const hasDemoItems = seriesList.some(s => String(s.id).startsWith('demo-'));
+            const banner = document.getElementById('demo-banner');
+            banner.classList.toggle('hidden', !hasDemoItems);
+        }
+
+        /**
+         * Oppdaterer aktiv tilstand på status-knappene
+         */
+        function updateStatusPillsUI() {
+            document.querySelectorAll('.status-pill').forEach(btn => {
+                const isActive = btn.dataset.status === filters.status;
+                if (isActive) {
+                    btn.className = 'status-pill px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition bg-indigo-600 text-white shadow-md shadow-indigo-600/20';
+                } else {
+                    btn.className = 'status-pill px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition bg-slate-800 text-slate-300 hover:bg-slate-700';
+                }
+            });
+        }
+
+        /**
+         * Hurtigfilter når bruker klikker på statistikk-kortene øverst
+         */
+        function setQuickStatusFilter(status) {
+            filters.status = (filters.status === status) ? 'Alle' : status;
+            updateStatusPillsUI();
+            renderSeriesGrid();
+        }
+
+        /**
+         * Nullstiller søkefeltet
+         */
+        function clearSearch() {
+            const input = document.getElementById('search-input');
+            input.value = '';
+            filters.search = '';
+            document.getElementById('clear-search-btn').classList.add('hidden');
+            renderSeriesGrid();
+        }
+
+        /**
+         * Nullstiller alle aktive filtre
+         */
+        function resetFilters() {
+            filters.search = '';
+            filters.status = 'Alle';
+            filters.service = 'Alle';
+            filters.viewer = 'Alle';
+
+            document.getElementById('search-input').value = '';
+            document.getElementById('clear-search-btn').classList.add('hidden');
+            document.getElementById('filter-service').value = 'Alle';
+            document.getElementById('filter-viewer').value = 'Alle';
+
+            updateStatusPillsUI();
+            renderSeriesGrid();
+        }
+
+        /**
+         * Filtrerer, sorterer og bygger HTML for alle serie-kort
+         */
+        function renderSeriesGrid() {
+            const grid = document.getElementById('series-grid');
+            const emptyState = document.getElementById('empty-state');
+            const resultCount = document.getElementById('result-count');
+            const resetBtn = document.getElementById('reset-filters-btn');
+
+            const isFiltered = filters.search !== '' || filters.status !== 'Alle' || filters.service !== 'Alle' || filters.viewer !== 'Alle';
+            resetBtn.classList.toggle('hidden', !isFiltered);
+
+            // Filtrering
+            let filtered = seriesList.filter(item => {
+                const matchesSearch = !filters.search || 
+                    item.title.toLowerCase().includes(filters.search) || 
+                    (item.note && item.note.toLowerCase().includes(filters.search));
+                const matchesStatus = filters.status === 'Alle' || item.status === filters.status;
+                const matchesService = filters.service === 'Alle' || item.service === filters.service;
+                const matchesViewer = filters.viewer === 'Alle' || item.viewer === filters.viewer;
+                return matchesSearch && matchesStatus && matchesService && matchesViewer;
+            });
+
+            // Sortering
+            filtered.sort((a, b) => {
+                if (filters.sort === 'title') {
+                    return a.title.localeCompare(b.title, 'no');
+                } else if (filters.sort === 'service') {
+                    const serviceCmp = a.service.localeCompare(b.service, 'no');
+                    return serviceCmp !== 0 ? serviceCmp : a.title.localeCompare(b.title, 'no');
+                } else {
+                    // Sist oppdatert øverst
+                    return (b.updatedAt || 0) - (a.updatedAt || 0);
+                }
+            });
+
+            resultCount.textContent = `Viser ${filtered.length} ${filtered.length === 1 ? 'serie' : 'serier'}`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                document.getElementById('empty-reset-btn').classList.toggle('hidden', !isFiltered);
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            grid.innerHTML = filtered.map(series => {
+                const sStyle = SERVICE_STYLES[series.service] || SERVICE_STYLES['Annet'];
+                const stStyle = STATUS_STYLES[series.status] || STATUS_STYLES['Ser nå'];
+                const formattedSeason = String(series.season).padStart(2, '0');
+                const formattedEpisode = String(series.episode).padStart(2, '0');
+
+                return `
+                <article class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-4 shadow-lg transition animate-fade-in">
+                    <!-- Topp: Badges & Rediger/Slett -->
+                    <div class="space-y-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <!-- Strømmetjeneste badge -->
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${sStyle.bg} ${sStyle.text} ${sStyle.border}">
+                                    <span class="w-1.5 h-1.5 rounded-full ${sStyle.dot}"></span>
+                                    ${escapeHTML(series.service)}
+                                </span>
+
+                                <!-- Hvem ser badge -->
+                                ${series.viewer ? `
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                                    <i class="fa-solid ${series.viewer === 'Begge' ? 'fa-user-group' : 'fa-user'} text-[10px] text-indigo-400"></i>
+                                    ${escapeHTML(series.viewer)}
+                                </span>` : ''}
+                            </div>
+
+                            <!-- Rediger / Slett knapper -->
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button onclick="openSeriesModal('${series.id}')" class="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition" title="Rediger serie">
+                                    <i class="fa-solid fa-pen text-xs"></i>
+                                </button>
+                                <button onclick="confirmDelete('${series.id}')" class="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 flex items-center justify-center transition" title="Slett serie">
+                                    <i class="fa-solid fa-trash-can text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Serietittel og eventuelt notat -->
+                        <div>
+                            <h3 class="text-lg font-bold text-white leading-snug break-words">${escapeHTML(series.title)}</h3>
+                            ${series.note ? `<p class="text-xs text-slate-400 mt-1 line-clamp-2"><i class="fa-regular fa-note-sticky mr-1 text-slate-500"></i>${escapeHTML(series.note)}</p>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Midt: Interaktive Sesong- og Episode-tellere -->
+                    <div class="bg-slate-950/90 border border-slate-800/90 rounded-xl p-3 space-y-2.5">
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <!-- Sesong teller -->
+                            <div class="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
+                                <span class="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Sesong</span>
+                                <div class="flex items-center justify-between w-full px-1">
+                                    <button onclick="updateCounter('${series.id}', 'season', -1)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 flex items-center justify-center transition" aria-label="Forrige sesong">
+                                        <i class="fa-solid fa-minus text-xs"></i>
+                                    </button>
+                                    <span class="font-mono text-base font-bold text-white">S${formattedSeason}</span>
+                                    <button onclick="updateCounter('${series.id}', 'season', 1)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 flex items-center justify-center transition" aria-label="Neste sesong">
+                                        <i class="fa-solid fa-plus text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Episode teller -->
+                            <div class="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col items-center">
+                                <span class="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-1">Episode</span>
+                                <div class="flex items-center justify-between w-full px-1">
+                                    <button onclick="updateCounter('${series.id}', 'episode', -1)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 flex items-center justify-center transition" aria-label="Forrige episode">
+                                        <i class="fa-solid fa-minus text-xs"></i>
+                                    </button>
+                                    <span class="font-mono text-base font-bold text-indigo-400">E${formattedEpisode}</span>
+                                    <button onclick="updateCounter('${series.id}', 'episode', 1)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 flex items-center justify-center transition" aria-label="Neste episode">
+                                        <i class="fa-solid fa-plus text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hurtigknapper: Neste episode +1 og Ny sesong -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="updateCounter('${series.id}', 'episode', 1)" class="py-2 px-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-xs font-semibold shadow-sm shadow-indigo-600/20 transition flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-forward-step"></i>
+                                <span>Neste ep (+1)</span>
+                            </button>
+                            <button onclick="startNewSeason('${series.id}')" class="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-200 border border-slate-700 text-xs font-medium transition flex items-center justify-center gap-1.5" title="Øker sesong med 1 og setter episode til 1">
+                                <i class="fa-solid fa-layer-group text-indigo-400"></i>
+                                <span>Ny sesong</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bunn: Direkte statusendring -->
+                    <div class="flex items-center justify-between gap-2 pt-1">
+                        <label for="status-${series.id}" class="text-xs text-slate-500 font-medium">Status:</label>
+                        <select 
+                            id="status-${series.id}" 
+                            onchange="changeSeriesStatus('${series.id}', this.value)"
+                            class="px-3 py-1.5 rounded-xl text-xs font-semibold border cursor-pointer focus:outline-none transition ${stStyle} bg-slate-950"
+                        >
+                            <option value="Ser nå" class="bg-slate-900 text-white" ${series.status === 'Ser nå' ? 'selected' : ''}>Ser nå</option>
+                            <option value="Venter på ny sesong" class="bg-slate-900 text-white" ${series.status === 'Venter på ny sesong' ? 'selected' : ''}>Venter på ny sesong</option>
+                            <option value="Planlagt" class="bg-slate-900 text-white" ${series.status === 'Planlagt' ? 'selected' : ''}>Planlagt</option>
+                            <option value="Ferdig" class="bg-slate-900 text-white" ${series.status === 'Ferdig' ? 'selected' : ''}>Ferdig</option>
+                        </select>
+                    </div>
+                </article>
+                `;
+            }).join('');
+        }
+
+        /**
+         * Øker eller reduserer sesong eller episode på et kort
+         */
+        function updateCounter(id, field, delta) {
+            const index = seriesList.findIndex(s => s.id === id);
+            if (index === -1) return;
+
+            const currentVal = parseInt(seriesList[index][field], 10) || 1;
+            const newVal = Math.max(1, currentVal + delta);
+            
+            if (newVal === currentVal) return;
+
+            seriesList[index][field] = newVal;
+            seriesList[index].updatedAt = Date.now();
+            
+            // Hvis status var "Planlagt" og man begynner å telle episoder, sett automatisk til "Ser nå"
+            if (seriesList[index].status === 'Planlagt' && delta > 0) {
+                seriesList[index].status = 'Ser nå';
+            }
+
+            saveData();
+            const label = field === 'season' ? `Sesong ${newVal}` : `S${String(seriesList[index].season).padStart(2, '0')}E${String(newVal).padStart(2, '0')}`;
+            showToast(`${seriesList[index].title}: ${label}`);
+        }
+
+        /**
+         * Øker sesong med 1 og nullstiller episode til 1
+         */
+        function startNewSeason(id) {
+            const index = seriesList.findIndex(s => s.id === id);
+            if (index === -1) return;
+
+            seriesList[index].season = (parseInt(seriesList[index].season, 10) || 1) + 1;
+            seriesList[index].episode = 1;
+            seriesList[index].status = 'Ser nå';
+            seriesList[index].updatedAt = Date.now();
+
+            saveData();
+            showToast(`${seriesList[index].title}: Startet på Sesong ${seriesList[index].season}, Episode 1`);
+        }
+
+        /**
+         * Endrer status direkte fra nedtrekksmenyen på serie-kortet
+         */
+        function changeSeriesStatus(id, newStatus) {
+            const index = seriesList.findIndex(s => s.id === id);
+            if (index === -1) return;
+
+            seriesList[index].status = newStatus;
+            seriesList[index].updatedAt = Date.now();
+            saveData();
+            showToast(`Status endret til «${newStatus}»`);
+        }
+
+        /**
+         * Åpner modal for å legge til ny serie eller redigere eksisterende
+         */
+        function openSeriesModal(editId = null) {
+            const modal = document.getElementById('series-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const form = document.getElementById('series-form');
+            form.reset();
+
+            if (editId) {
+                const series = seriesList.find(s => s.id === editId);
+                if (!series) return;
+
+                modalTitle.textContent = 'Rediger serie';
+                document.getElementById('form-id').value = series.id;
+                document.getElementById('form-title').value = series.title;
+                document.getElementById('form-service').value = series.service;
+                document.getElementById('form-status').value = series.status;
+                document.getElementById('form-season').value = series.season;
+                document.getElementById('form-episode').value = series.episode;
+                document.getElementById('form-note').value = series.note || '';
+                selectViewerInForm(series.viewer || '');
+            } else {
+                modalTitle.textContent = 'Legg til ny serie';
+                document.getElementById('form-id').value = '';
+                document.getElementById('form-season').value = 1;
+                document.getElementById('form-episode').value = 1;
+                selectViewerInForm('Begge');
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => document.getElementById('form-title').focus(), 100);
+        }
+
+        function closeSeriesModal() {
+            const modal = document.getElementById('series-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        /**
+         * Marker valgt "Hvem ser"-knapp i skjemaet
+         */
+        function selectViewerInForm(viewerValue) {
+            document.getElementById('form-viewer').value = viewerValue;
+            document.querySelectorAll('.viewer-btn').forEach(btn => {
+                if (btn.dataset.viewer === viewerValue) {
+                    btn.className = 'viewer-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-semibold transition bg-indigo-600 border-indigo-500 text-white';
+                } else {
+                    btn.className = 'viewer-btn py-2.5 px-2 rounded-xl border text-xs sm:text-sm font-medium transition bg-slate-950 border-slate-700 text-slate-300 hover:bg-slate-800';
+                }
+            });
+        }
+
+        /**
+         * Lagrer ny eller redigert serie fra skjemaet
+         */
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('form-id').value;
+            const title = document.getElementById('form-title').value.trim();
+            const service = document.getElementById('form-service').value;
+            const status = document.getElementById('form-status').value;
+            const season = Math.max(1, parseInt(document.getElementById('form-season').value, 10) || 1);
+            const episode = Math.max(1, parseInt(document.getElementById('form-episode').value, 10) || 1);
+            const viewer = document.getElementById('form-viewer').value;
+            const note = document.getElementById('form-note').value.trim();
+
+            if (!title) return;
+
+            if (id) {
+                const index = seriesList.findIndex(s => s.id === id);
+                if (index !== -1) {
+                    seriesList[index] = {
+                        ...seriesList[index],
+                        title,
+                        service,
+                        status,
+                        season,
+                        episode,
+                        viewer,
+                        note,
+                        updatedAt: Date.now()
+                    };
+                    showToast(`Oppdaterte «${title}»`);
+                }
+            } else {
+                const newSeries = {
+                    id: 'serie-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+                    title,
+                    service,
+                    status,
+                    season,
+                    episode,
+                    viewer,
+                    note,
+                    updatedAt: Date.now()
+                };
+                seriesList.unshift(newSeries);
+                showToast(`La til «${title}»`);
+            }
+
+            saveData();
+            closeSeriesModal();
+        }
+
+        /**
+         * Åpner egendefinert slettebekreftelse
+         */
+        function confirmDelete(id) {
+            const series = seriesList.find(s => s.id === id);
+            if (!series) return;
+
+            seriesToDeleteId = id;
+            document.getElementById('delete-series-name').textContent = `«${series.title}»`;
+            const modal = document.getElementById('delete-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeDeleteModal() {
+            seriesToDeleteId = null;
+            const modal = document.getElementById('delete-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function executeDelete() {
+            if (!seriesToDeleteId) return;
+            const deleted = seriesList.find(s => s.id === seriesToDeleteId);
+            seriesList = seriesList.filter(s => s.id !== seriesToDeleteId);
+            saveData();
+            closeDeleteModal();
+            if (deleted) {
+                showToast(`Slettet «${deleted.title}»`);
+            }
+        }
+
+        /**
+         * Backup-modal funksjoner (Eksport / Import / Utklippstavle)
+         */
+        function openBackupModal() {
+            const modal = document.getElementById('backup-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeBackupModal() {
+            const modal = document.getElementById('backup-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function exportJSON() {
+            try {
+                const dataStr = JSON.stringify(seriesList, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const date = new Date().toISOString().slice(0, 10);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `serietracker-backup-${date}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showToast('Backup-fil lastet ned!');
+            } catch (err) {
+                showToast('Kunne ikke laste ned fil.', 'error');
+            }
+        }
+
+        function copyJSONToClipboard() {
+            try {
+                const dataStr = JSON.stringify(seriesList, null, 2);
+                const textarea = document.createElement('textarea');
+                textarea.value = dataStr;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast('Serieliste kopiert til utklippstavlen!');
+            } catch (err) {
+                showToast('Kunne ikke kopiere data.', 'error');
+            }
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!Array.isArray(imported)) {
+                        throw new Error('Ugyldig filformat');
+                    }
+
+                    // Validerer at objektene har minimum tittel
+                    const validItems = imported.filter(item => item && typeof item.title === 'string').map(item => ({
+                        id: item.id || ('imp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6)),
+                        title: item.title,
+                        service: item.service || 'Annet',
+                        status: item.status || 'Ser nå',
+                        season: Math.max(1, parseInt(item.season, 10) || 1),
+                        episode: Math.max(1, parseInt(item.episode, 10) || 1),
+                        viewer: item.viewer || '',
+                        note: item.note || '',
+                        updatedAt: item.updatedAt || Date.now()
+                    }));
+
+                    if (validItems.length === 0) {
+                        showToast('Fant ingen gyldige serier i filen.', 'error');
+                        return;
+                    }
+
+                    seriesList = validItems;
+                    saveData();
+                    closeBackupModal();
+                    showToast(`Importerte ${validItems.length} serier!`);
+                } catch (err) {
+                    showToast('Feil: Ugyldig JSON-fil.', 'error');
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /**
+         * Viser en diskret bekreftelsesmelding (toast) nederst på skjermen
+         */
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgClass = type === 'error' 
+                ? 'bg-rose-900/95 border-rose-500/50 text-rose-100' 
+                : 'bg-slate-800/95 border-slate-600/60 text-white';
+            const iconClass = type === 'error'
+                ? 'fa-circle-exclamation text-rose-400'
+                : 'fa-circle-check text-emerald-400';
+
+            toast.className = `px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-md text-xs sm:text-sm font-medium flex items-center gap-2.5 animate-fade-in ${bgClass}`;
+            toast.innerHTML = `<i class="fa-solid ${iconClass}"></i><span>${escapeHTML(message)}</span>`;
+            
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(6px)';
+                toast.style.transition = 'all 0.25s ease';
+                setTimeout(() => toast.remove(), 250);
+            }, 2600);
+        }
+
+        /**
+         * Sikrer mot XSS ved visning av brukerinndata
+         */
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>
